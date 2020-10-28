@@ -11,45 +11,79 @@ import App from "../src/App";
 const PORT = process.env.PORT || 3006;
 const app = express();
 
-app.use(express.static("./build"));
-
-app.get("/*", (req, res) => {
+const handlerSsrRequests = (req, res) => {
   const context = {
     status: 200,
-    fetch: {
-      "2102823389": [1,2,3,4,5]
+    fetch: {},
+    get(key){
+      if (this.fetch[key]) return this.fetch[key];
+    },
+    set(k, d) {
+      this.fetch[k] = d;
+    },
+    poolFetches: [],
+    resetPoolFetches(){
+      this.poolFetches = [];
     }
   };
 
-  const app = ReactDOMServer.renderToString(
-    <StaticRouter location={req.url} context={context}>
-      <App />
-    </StaticRouter>
-  );
+  function recusiveRenderApp() {
+    return new Promise(async (resolve, reject) => {
+      console.log("Rendering react app");
+      let app = ReactDOMServer.renderToString(
+        <StaticRouter location={req.url} context={context}>
+          <App />
+        </StaticRouter>
+      );
 
-  const indexFile = path.resolve("./build/index.html");
-  fs.readFile(indexFile, "utf8", (err, data) => {
-    if (err) {
-      console.error("Something went wrong:", err);
-      return res.status(500).send("Oops, better luck next time!");
-    }
+      if (context.poolFetches.length) {
+        console.log(`Found fetches that should be resolve before: ${context.poolFetches.length}`);
+        return Promise.all(context.poolFetches).then(()=>{
+          context.poolFetches = [];
+          return recusiveRenderApp();
+        }).then(resolve).catch(reject)
+      }
+      console.log('Was resolved all fetches')
+      resolve(app);
+    });
+  }
 
-    if (context.status) {
-      res.status(context.status);
-    }
 
-    if (context.url) {
-      return res.redirect(301, context.url);
-    }
-    const ssrFetchData = `<script>
+  recusiveRenderApp().catch(error => {
+    res.status(500).send("Error on Promises " + JSON.stringify(error));
+  }).then((app) => {
+    const indexFile = path.resolve("./build/index.html");
+    fs.readFile(indexFile, "utf8", (err, data) => {
+      if (err) {
+        console.error("Something went wrong:", err);
+        return res.status(500).send("Oops, better luck next time!");
+      }
+
+      if (context.status) {
+        res.status(context.status);
+      }
+
+      if (context.url) {
+        return res.redirect(301, context.url);
+      }
+
+      const ssrFetchData = `<script>
     window.__ssrFetch__ = ${JSON.stringify(context.fetch)}
     </script>`;
-    return res.send(
-      data.replace('<div id="root"></div>', `<div id="root">${app}</div>${ssrFetchData}`)
-    );
-  });
-});
 
+      return res.send(
+        data.replace(
+          '<div id="root"></div>',
+          `<div data-any id="root">${app}</div>${ssrFetchData}`
+        )
+      );
+    });
+  });
+};
+
+app.get("/", handlerSsrRequests);
+app.use(express.static("./build"));
+app.get("/*", handlerSsrRequests);
 
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);

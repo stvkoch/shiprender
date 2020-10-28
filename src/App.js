@@ -1,14 +1,23 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Route, Switch, NavLink } from "react-router-dom";
+import styled from "@emotion/styled";
 
 import Home from "./containers/home";
 import Details from "./containers/details";
 import List from "./containers/list";
 import NotFound from "./containers/not-found";
 
+const Container = styled.div`
+  padding: 20px;
+`;
+
 function App() {
+  useEffect(() => {
+    // window.__ssrFetchForce__ = true;
+  }, []);
+
   return (
-    <div>
+    <Container>
       <ul>
         <li>
           <NavLink to="/">Home</NavLink>
@@ -26,7 +35,7 @@ function App() {
         <Route path="/details" component={Details} />
         <Route component={NotFound} />
       </Switch>
-    </div>
+    </Container>
   );
 }
 

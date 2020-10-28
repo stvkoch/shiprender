@@ -1,57 +1,35 @@
-import React, { useEffect, useState } from "react";
-import { hash } from "./../utils/hash";
+import React from "react";
+import { useSsrFetch } from "./../ssr";
 
-const isSSR = !(
-  typeof window !== "undefined" &&
-  window.document &&
-  window.document.createElement
-);
-
-// import {ssrUseEffect, ssrState} from 'ssr-state'
-
-const useSsrFetchEffect = (f, deps) => {
-  // check if is ssr and save the content
-  const ssrFetch = (operation) => ({ then: (ff) => ff([9, 8, 7, 6, 5]) });
-  isSSR && f(ssrFetch);
-  console.log("isSSR", isSSR);
-  useEffect(() => f(ssrFetch), deps);
-};
-
-const useSsrFetchState = (operation, context, defaultValue) => {
-  const key = hash(operation);
-
-  if (context && context.fetch && context.fetch[key]) return context.fetch[key];
-  if (!isSSR && window.__ssrFetch__ && window.__ssrFetch__[key])
-    return window.__ssrFetch__[key];
-
-  context.fetch[key] = defaultValue;
-  return defaultValue;
-};
+import ShowComments from "../component/show-comments";
 
 const OPERATION = {
-  url: "/list",
-  params: {
-    limit: 10,
-  },
+  url: "http://localhost:3010/posts",
 };
 
 const List = (props) => {
-  const [list, setList] = useState(
-    useSsrFetchState(OPERATION, props.staticContext, ["a", "b", "c"])
-  );
+  const { data, loading } = useSsrFetch(OPERATION);
 
-  console.log(props);
+  if (loading) return <div>Loading...</div>;
 
-  // useSsrFetchEffect((ssrFetch) => {
-  //    ssrFetch(OPERATION).then((list) => setList(list));
-  // }, []);
+  const results = data;
 
   return (
     <div>
-      <h1>List of list</h1>
-      {list.map((item) => (
-        <div>{item}</div>
-      ))}
+      <h1>List of posts</h1>
+      <hr />
+      <div>
+        {results.slice(0,5).map((item) => (
+          <div key={item.id}>
+            <h2 key={item.id}>{item.title}</h2>
+            <p>{item.body}</p>
+            <ShowComments postId={item.id} />
+            <hr />
+          </div>
+        ))}
+      </div>
+      <hr />
+      <hr />
     </div>
   );
 };
