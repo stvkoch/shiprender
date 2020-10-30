@@ -1,3 +1,19 @@
+*Status: design*
+
+next:
+- create a exported server
+- turn into a package
+
+```
+const { html } = ssrRender(<App />)
+res.send(html)
+```
+
+- ssrRender
+- ssrConfigApolloClient(client)
+- useSsrFetch
+
+
 # Shiprender - React SSR server
 
 Shiprender is a initial express webserver configuration and modules that help React applications take advantage of server side render without extra effort as you define your data dependencies on server side.
